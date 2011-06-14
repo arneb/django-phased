@@ -1,5 +1,6 @@
 from django.middleware.cache import UpdateCacheMiddleware
 from django.utils.cache import patch_vary_headers
+from django.conf import settings
 from phased.utils import second_pass_render, drop_vary_headers
 
 
@@ -18,6 +19,10 @@ class PhasedRenderMiddleware(object):
             return response
         response.content = second_pass_render(request, response.content)
         response['Content-Length'] = str(len(response.content))
+        if request.META.get('CSRF_COOKIE', False):
+            response.set_cookie(settings.CSRF_COOKIE_NAME,
+                request.META["CSRF_COOKIE"], max_age = 60 * 60 * 24 * 7 * 52,
+                domain=settings.CSRF_COOKIE_DOMAIN)
         return response
 
 

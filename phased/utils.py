@@ -8,6 +8,7 @@ from django.utils.functional import Promise, LazyObject
 from django.http import HttpRequest
 from django.contrib.messages.storage.base import BaseStorage
 from django.utils.encoding import smart_str
+from django.middleware.csrf import _get_new_csrf_key
 
 try:
     import cPickle as pickle
@@ -54,11 +55,16 @@ def restore_csrf_token(request, storage=None):
     if storage is None:
         storage = {}
     try:
-        request.META["CSRF_COOKIE"] = request.COOKIES[django_settings.CSRF_COOKIE_NAME]
+        if not request.META.get("CSRF_COOKIE", False):
+            request.META["CSRF_COOKIE"] = request.COOKIES[django_settings.CSRF_COOKIE_NAME]
     except KeyError:
         csrf_token = storage.get('csrf_token', None)
         if csrf_token:
+            # if the context has a cached csrf token generate a new token
+            # otherwise all users will get the same csrf token assigned
+            csrf_token = _get_new_csrf_key()
             request.META["CSRF_COOKIE"] = csrf_token
+            storage['csrf_token'] = csrf_token
     return storage
 
 def backup_csrf_token(context, storage=None):
